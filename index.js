@@ -25,9 +25,14 @@ const resizeImageBuffer = (Imgpath, image, toFolder) => {
 }
 
 const compress = (fromFolder, toFolder) => {
-  if (!fs.existsSync(fromFolder)){
+  if (!fs.existsSync(fromFolder)) {
     fs.mkdirSync(fromFolder);
   }
+
+  if (!fs.existsSync(toFolder)) {
+    fs.mkdirSync(toFolder);
+  }
+
   const paths = fs.readdirSync(fromFolder);
 
   console.log(`
@@ -36,44 +41,46 @@ const compress = (fromFolder, toFolder) => {
     Total files: ${paths.length}
     ================================================
   `);
-  
+
   const promises = paths.map((p) => {
-    if (!p.match(/.*\.(jpe?g|bmp|png)$/igm)) {
-      if(!p.includes(".")) return;
-      fs.copyFileSync(`${fromFolder}${p}`, `${toFolder}${p}`)
+    if (fs.existsSync(`${toFolder}${p}`)) {
       return;
+    }
+
+    if (!p.match(/.*\.(jpe?g|bmp|png)$/igm)) {
+      if (!p.includes(".")) return;
+      return fs.copyFileSync(`${fromFolder}${p}`, `${toFolder}${p}`)
     };
 
     if (fs.statSync(`${fromFolder}${p}`).size < 400000) {
-      fs.copyFileSync(`${fromFolder}${p}`, `${toFolder}${p}`)
-      return;
+      return fs.copyFileSync(`${fromFolder}${p}`, `${toFolder}${p}`)
     };
 
 
-    resizeImageBuffer(`${fromFolder}${p}`, p, toFolder).then(result => console.log(result)).catch((e) => {
-        console.log("file name: " + p + " can't compress");
-        console.log("with error: " + e);
-        fs.copyFileSync(`${fromFolder}${p}`, `${toFolder}${p}`)
+    return resizeImageBuffer(`${fromFolder}${p}`, p, toFolder).then(result => console.log(result)).catch((e) => {
+      console.log("file name: " + p + " can't compress");
+      console.log("with error: " + e);
+      fs.copyFileSync(`${fromFolder}${p}`, `${toFolder}${p}`)
     });
 
   });
 
-  Promise.all(promises);
-
-  console.log(`
+  return Promise.all(promises).then((result) => {
+    console.log(`
     ================================================
     Compress done!!!  ${fromFolder} => ${toFolder}
-    Total files compressed: ${fs.readdirSync(toFolder).length}
+    Total files compressed: ${result.length}
     ================================================
   `);
+  });
 }
 
 const main = () => {
-  const TARGET_DIR = `/Users/macintoshhd/aws-images/`;
-  const COMPRESSED_PATH = '/Users/macintoshhd/Code/compress-image/';
+  const TARGET_DIR = '/root/media/';
+  const COMPRESSED_PATH = '/root/media/';
 
   // check target directory
-  if (!fs.existsSync(TARGET_DIR)){
+  if (!fs.existsSync(TARGET_DIR)) {
     console.log(`
     ================================================
     ${TARGET_DIR} Not Found!
@@ -90,14 +97,14 @@ const main = () => {
     - ${COMPRESSED_PATH}${folderCompress}/
     ================================================
   `);
-  if (fs.existsSync(`${COMPRESSED_PATH}${folderCompress}/`)){
+  if (fs.existsSync(`${COMPRESSED_PATH}${folderCompress}/`)) {
     console.log(`
     ================================================
     Folder ${COMPRESSED_PATH}${folderCompress}/ already exists
     Re-create directory
     ================================================
     `);
-    fs.rmdirSync(`${COMPRESSED_PATH}${folderCompress}/`);
+    fs.rmSync(`${COMPRESSED_PATH}${folderCompress}/`, { recursive: true });
   }
   fs.mkdirSync(`${COMPRESSED_PATH}${folderCompress}/`);
 
@@ -112,7 +119,7 @@ const main = () => {
   //   result.push(newDirectory);
 
   //   const isHaveChildDir = fs.readdirSync(`${TARGET_DIR}${dir}`).filter(childDir => fs.statSync(`${TARGET_DIR}${dir}/${childDir}`).isDirectory());
-    
+
   //   isHaveChildDir.forEach(childDir => {
   //     newDirectory.from + `${childDir}/`;
   //     newDirectory.to += `${childDir}/`;
@@ -127,31 +134,37 @@ const main = () => {
 
 
   const imageFolders = [
-    {
-      from: `${TARGET_DIR}`,
-      to: `/root/${folderCompress}/`
-    },
+    // {
+    //   from: `${TARGET_DIR}`,
+    //   to: `${COMPRESSED_PATH}${folderCompress}/`
+    // },
     {
       from: `${TARGET_DIR}images/`,
-      to: `/root/${folderCompress}/images/`
+      to: `${COMPRESSED_PATH}${folderCompress}/images/`
     },
+    // Community
     {
-      from: `${TARGET_DIR}images/ID/`,
-      to: `/root/${folderCompress}/images/ID/`
-    },
-    {
-      from: `${TARGET_DIR}images/categories/`,
-      to: `/root/${folderCompress}/images/categories/`
-    },
-    {
-      from: `${TARGET_DIR}images/products/`,
-      to: `/root/${folderCompress}/images/products/`
+      from: `${TARGET_DIR}images/thumbnail/`,
+      to: `${COMPRESSED_PATH}${folderCompress}/images/thumbnail/`
     }
+    // E-commers
+    // {
+    //   from: `${TARGET_DIR}images/ID/`,
+    //   to: `${COMPRESSED_PATH}${folderCompress}/images/ID/`
+    // },
+    // {
+    //   from: `${TARGET_DIR}images/categories/`,
+    //   to: `${COMPRESSED_PATH}${folderCompress}/images/categories/`
+    // },
+    // {
+    //   from: `${TARGET_DIR}images/products/`,
+    //   to: `${COMPRESSED_PATH}${folderCompress}/images/products/`
+    // }
   ];
 
-  // for (const dir of imageFolders) {
-  //   compress(dir.from, dir.to);
-  // }
+  for (const dir of imageFolders) {
+    compress(dir.from, dir.to);
+  }
 };
 
 main();
